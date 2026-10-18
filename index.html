@@ -9,12 +9,17 @@
     body { font-family: 'Clear Sans', 'Helvetica Neue', Arial, sans-serif; display: flex; flex-direction: column; align-items: center; background: #121213; color: white; margin: 0; padding: 15px; min-height: 100vh; justify-content: space-between; }
     h1 { margin: 0 0 5px 0; font-size: 2rem; letter-spacing: 0.1rem; border-bottom: 1px solid #3a3a3c; width: 100%; text-align: center; padding-bottom: 5px; }
     #game-container { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; max-width: 900px; }
-    button { background: #538d4e; color: white; border: none; padding: 12px 24px; font-weight: bold; cursor: pointer; border-radius: 5px; font-size: 1rem; text-transform: uppercase; }
+    
+    .btn-group { display: flex; gap: 10px; margin-top: 10px; }
+    button { background: #538d4e; color: white; border: none; padding: 12px 24px; font-weight: bold; cursor: pointer; border-radius: 5px; font-size: 0.95rem; text-transform: uppercase; }
     button:hover { background: #6aaa64; }
+    button.secondary { background: #b59f3b; }
+    button.secondary:hover { background: #c9b046; }
     
     /* Clue Box Styling */
-    #clue-box { background-color: #1e293b; border: 1px solid #38bdf8; color: #e2e8f0; padding: 10px 15px; border-radius: 6px; font-size: 0.95rem; text-align: center; max-width: 600px; width: 100%; min-height: 48px; display: flex; align-items: center; justify-content: center; }
+    #clue-box { background-color: #1e293b; border: 1px solid #38bdf8; color: #e2e8f0; padding: 10px 15px; border-radius: 6px; font-size: 0.95rem; text-align: center; max-width: 600px; width: 100%; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
     #clue-box span { color: #38bdf8; font-weight: bold; margin-right: 6px; }
+    #definition-hint { color: #f39c12; font-style: italic; font-size: 0.88rem; }
 
     /* Centered Dynamic Grid Styling */
     .grid { display: flex; flex-direction: column; gap: 5px; margin-bottom: 5px; width: 100%; align-items: center; }
@@ -55,7 +60,10 @@
   <h1>WORDLE</h1>
 
   <div id="game-container">
-    <div id="clue-box"><span>Hint:</span> Loading hint...</div>
+    <div id="clue-box">
+      <div id="pattern-hint"><span>Hint:</span> Loading hint...</div>
+      <div id="definition-hint" class="hidden"></div>
+    </div>
     <div id="message"></div>
 
     <div id="grid" class="grid"></div>
@@ -97,45 +105,90 @@
       </div>
     </div>
     
-    <button id="next-btn" class="hidden" style="margin-top:15px;" onclick="nextWord()">Play Next Word</button>
+    <div class="btn-group">
+      <button id="hint-btn" class="secondary hidden" onclick="showExtraHint()">Need Extra Hint?</button>
+      <button id="next-btn" class="hidden" onclick="nextWord()">Play Next Word</button>
+    </div>
   </div>
 
   <script>
     /* ------------------------------------------------------------------
-       TEACHER SETUP: Master Word List with Pattern Labels
+       TEACHER SETUP: Master Word List & Expanded Offline Dictionary
     ------------------------------------------------------------------ */
-    const WORD_DATA = [
+    const TARGET_WORDS = [
       // Trigraph: -tch
-      { word: "CATCH", pattern: "tch" }, { word: "MATCH", pattern: "tch" }, 
-      { word: "PATCH", pattern: "tch" }, { word: "PITCH", pattern: "tch" }, 
-      { word: "WITCH", pattern: "tch" }, { word: "SWITCH", pattern: "tch" }, 
-      { word: "SKETCH", pattern: "tch" }, { word: "STITCH", pattern: "tch" }, 
-      { word: "FETCH", pattern: "tch" }, { word: "KITCHEN", pattern: "tch" },
+      { word: "CATCH", pattern: "tch", clue: "To grab and hold something moving through the air." },
+      { word: "MATCH", pattern: "tch", clue: "A small wooden stick used to make a flame." },
+      { word: "PATCH", pattern: "tch", clue: "A small piece of material used to mend a hole." },
+      { word: "PITCH", pattern: "tch", clue: "To throw a ball, or the highness of a sound." },
+      { word: "WITCH", pattern: "tch", clue: "A character in stories who uses magic spells." },
+      { word: "SWITCH", pattern: "tch", clue: "A device used to turn an electric light on or off." },
+      { word: "SKETCH", pattern: "tch", clue: "A quick, simple drawing made without many details." },
+      { word: "STITCH", pattern: "tch", clue: "A single loop of thread created with a sewing needle." },
+      { word: "FETCH", pattern: "tch", clue: "To go after something and bring it back." },
+      { word: "KITCHEN", pattern: "tch", clue: "A room in the house where food is cooked." },
+      { word: "GLITCH", pattern: "tch", clue: "A sudden, brief malfunction or fault in equipment." },
+      { word: "HATCH", pattern: "tch", clue: "To emerge from an egg." },
+      { word: "LATCH", pattern: "tch", clue: "A metal bar used to fasten a door or gate." },
+      { word: "SNATCH", pattern: "tch", clue: "To quickly seize something in a rude or eager way." },
 
       // Trigraph: -dge
-      { word: "BADGE", pattern: "dge" }, { word: "EDGE", pattern: "dge" }, 
-      { word: "HEDGE", pattern: "dge" }, { word: "BRIDGE", pattern: "dge" }, 
-      { word: "RIDGE", pattern: "dge" }, { word: "FRIDGE", pattern: "dge" }, 
-      { word: "LODGE", pattern: "dge" }, { word: "JUDGE", pattern: "dge" }, 
-      { word: "FUDGE", pattern: "dge" }, { word: "PLEDGE", pattern: "dge" }, 
-      { word: "SLUDGE", pattern: "dge" }, { word: "TRUDGE", pattern: "dge" },
-      { word: "GRUDGE", pattern: "dge" }, { word: "SMUDGE", pattern: "dge" }, 
-      { word: "BADGER", pattern: "dge" }, { word: "FIDGET", pattern: "dge" },
-      { word: "BUDGET", pattern: "dge" }, { word: "GADGET", pattern: "dge" },
+      { word: "BADGE", pattern: "dge", clue: "A small emblem worn to show rank or membership." },
+      { word: "EDGE", pattern: "dge", clue: "The outside limit or border of an object or area." },
+      { word: "LEDGE", pattern: "dge", clue: "A narrow horizontal surface projecting from a wall." },
+      { word: "HEDGE", pattern: "dge", clue: "A fence formed by closely growing bushes or shrubs." },
+      { word: "BRIDGE", pattern: "dge", clue: "A structure built over water, road, or railway." },
+      { word: "RIDGE", pattern: "dge", clue: "A long narrow hilltop, mountain range, or crest." },
+      { word: "FRIDGE", pattern: "dge", clue: "An appliance used to keep food and drinks cold." },
+      { word: "LODGE", pattern: "dge", clue: "A small house in the country used for holidays." },
+      { word: "JUDGE", pattern: "dge", clue: "A public officer appointed to decide cases in a court." },
+      { word: "FUDGE", pattern: "dge", clue: "A soft, rich sweet made from sugar, butter, and milk." },
+      { word: "PLEDGE", pattern: "dge", clue: "A solemn promise or agreement to do something." },
+      { word: "SLUDGE", pattern: "dge", clue: "Thick, soft, wet mud or a viscous mixture." },
+      { word: "TRUDGE", pattern: "dge", clue: "Walk slowly and with heavy steps from exhaustion." },
+      { word: "GRUDGE", pattern: "dge", clue: "A persistent feeling of ill will or resentment." },
+      { word: "SMUDGE", pattern: "dge", clue: "A cause to become smeared or blurred." },
+      { word: "BADGER", pattern: "dge", clue: "A heavily built nocturnal mammal with a striped head." },
+      { word: "FIDGET", pattern: "dge", clue: "Make small movements through nervousness or impatience." },
+      { word: "BUDGET", pattern: "dge", clue: "An estimate of income and expenditure for a set time." },
+      { word: "GADGET", pattern: "dge", clue: "A small mechanical or electronic device or tool." },
+      { word: "SLEDGE", pattern: "dge", clue: "A vehicle pulled over snow, or a heavy hammer." },
+      { word: "DODGE", pattern: "dge", clue: "Avoid someone or something by a quick movement." },
+      { word: "NUDGE", pattern: "dge", clue: "Prod someone gently, typically with an elbow." },
 
       // Trigraph: -igh
-      { word: "LIGHT", pattern: "igh" }, { word: "NIGHT", pattern: "igh" }, 
-      { word: "BRIGHT", pattern: "igh" }, { word: "FLIGHT", pattern: "igh" }, 
-      { word: "FRIGHT", pattern: "igh" }, { word: "SLIGHT", pattern: "igh" },
+      { word: "LIGHT", pattern: "igh", clue: "The natural agent that stimulates sight and makes things visible." },
+      { word: "NIGHT", pattern: "igh", clue: "The period of darkness in each twenty-four hours." },
+      { word: "BRIGHT", pattern: "igh", clue: "Giving out or reflecting much light; shining." },
+      { word: "FLIGHT", pattern: "igh", clue: "An action or process of flying through the air." },
+      { word: "FRIGHT", pattern: "igh", clue: "A sudden intense feeling of fear." },
+      { word: "SLIGHT", pattern: "igh", clue: "Small in degree, size, or importance." },
+      { word: "HIGH", pattern: "igh", clue: "Great, or greater than normal, in quantity, size, or intensity." },
+      { word: "SIGH", pattern: "igh", clue: "Emit a long, deep, audible breath expressing sadness or relief." },
+      { word: "MIGHT", pattern: "igh", clue: "Great and impressive power or strength." },
+      { word: "TIGHT", pattern: "igh", clue: "Fixed, fastened, or held firmly in position." },
 
       // Silent Letters & Consonant Patterns
-      { word: "WRECK", pattern: "wr" }, { word: "WRAP", pattern: "wr" }, 
-      { word: "WRITE", pattern: "wr" }, { word: "WRESTLE", pattern: "wr" }, 
-      { word: "WRIST", pattern: "wr" }, { word: "KNOW", pattern: "kn" }, 
-      { word: "KNOCK", pattern: "kn" }, { word: "KNOT", pattern: "kn" }, 
-      { word: "KNIGHT", pattern: "kn" }, { word: "THROUGH", pattern: "ough" }, 
-      { word: "ENOUGH", pattern: "ough" }, { word: "DOUGH", pattern: "ough" }, 
-      { word: "CANDLE", pattern: "-le" }, { word: "PUZZLE", pattern: "-le" }
+      { word: "WRECK", pattern: "wr", clue: "To destroy or ruin something completely." },
+      { word: "WRAP", pattern: "wr", clue: "To cover something in paper or cloth as a gift." },
+      { word: "WRITE", pattern: "wr", clue: "To mark letters or words on paper using a pen or pencil." },
+      { word: "WRESTLE", pattern: "wr", clue: "To fight or grapple with someone as a sport." },
+      { word: "WRIST", pattern: "wr", clue: "The joint connecting your hand to your arm." },
+      { word: "KNOW", pattern: "kn", clue: "To understand or have information about something." },
+      { word: "KNOCK", pattern: "kn", clue: "To strike a door sharply with your knuckles." },
+      { word: "KNOT", pattern: "kn", clue: "A fastening made by tying a piece of string or rope." },
+      { word: "KNIGHT", pattern: "kn", clue: "A warrior in armor who served a king in medieval times." },
+      { word: "THROUGH", pattern: "ough", clue: "Moving in one side and out the other side." },
+      { word: "ENOUGH", pattern: "ough", clue: "As much or as many as required or needed." },
+      { word: "DOUGH", pattern: "ough", clue: "A thick mixture of flour and water ready to be baked." },
+      { word: "CANDLE", pattern: "-le", clue: "A stick of wax with a wick that burns to give light." },
+      { word: "PUZZLE", pattern: "-le", clue: "A game or problem designed to test ingenuity." }
+    ];
+
+    const EXTRA_OFFLINE_DICTIONARY = [
+      "CRANE", "STARE", "PLANT", "TRAIN", "HOUSE", "MOUSE", "CLOCK", "STONE",
+      "SNAKE", "GRASS", "WATER", "BREAD", "CHAIR", "TABLE", "PAPER", "SMART",
+      "SHARK", "SHEEP", "SHIRT", "SHOES", "DRIVE", "DREAM", "FLOWER", "GARDEN"
     ];
 
     const MAX_GRID_SIZE = 13;
@@ -153,11 +206,16 @@
     const keyStateMap = {};
 
     function startGame() {
-      validWordsSet = new Set(WORD_DATA.map(item => item.word.trim().toUpperCase()));
+      const allWords = [
+        ...TARGET_WORDS.map(item => item.word),
+        ...EXTRA_OFFLINE_DICTIONARY
+      ];
+      validWordsSet = new Set(allWords.map(w => w.trim().toUpperCase()));
 
-      wordList = WORD_DATA.map(item => ({
+      wordList = TARGET_WORDS.map(item => ({
         word: item.word.trim().toUpperCase(),
-        pattern: item.pattern
+        pattern: item.pattern,
+        clue: item.clue
       })).sort(() => Math.random() - 0.5);
 
       nextWord();
@@ -170,7 +228,9 @@
     function nextWord() {
       if (wordList.length === 0) {
         showMessage("Game Over! All words solved.", 0);
-        document.getElementById('clue-box').innerHTML = "<span>Hint:</span> All puzzles complete!";
+        document.getElementById('pattern-hint').innerHTML = "<span>Hint:</span> All puzzles complete!";
+        document.getElementById('definition-hint').classList.add('hidden');
+        document.getElementById('hint-btn').classList.add('hidden');
         document.getElementById('next-btn').classList.add('hidden');
         return;
       }
@@ -179,11 +239,12 @@
       targetWord = currentWordObj.word;
       wordLength = targetWord.length;
       
-      // Dynamic Pattern-Only Hint
-      const hintText = generatePatternHint(currentWordObj);
-      document.getElementById('clue-box').innerHTML = `<span>Hint:</span> ${hintText}`;
+      // Reset Hints
+      document.getElementById('pattern-hint').innerHTML = `<span>Hint:</span> ${generatePatternHint(currentWordObj)}`;
+      const defDiv = document.getElementById('definition-hint');
+      defDiv.innerText = "";
+      defDiv.classList.add('hidden');
 
-      // CENTER ALIGNMENT CALCULATION
       startIndex = Math.floor((MAX_GRID_SIZE - wordLength) / 2);
       
       currentRow = 0;
@@ -193,9 +254,19 @@
 
       document.getElementById('message').innerText = "";
       document.getElementById('next-btn').classList.add('hidden');
+      document.getElementById('hint-btn').classList.add('hidden');
 
       resetKeyboard();
       buildGrid();
+    }
+
+    function showExtraHint() {
+      if (currentWordObj && currentWordObj.clue) {
+        const defDiv = document.getElementById('definition-hint');
+        defDiv.innerText = `Meaning: ${currentWordObj.clue}`;
+        defDiv.classList.remove('hidden');
+        document.getElementById('hint-btn').classList.add('hidden');
+      }
     }
 
     function resetKeyboard() {
@@ -317,14 +388,14 @@
 
     function submitGuess() {
       for (let i = 0; i < wordLength; i++) {
-        if (!guesses[currentRow][i]) {
+        if (!guesses[currentRow][i] || guesses[currentRow][i].trim() === "") {
           showMessage("Fill all letters");
           shakeRow(currentRow);
           return;
         }
       }
 
-      const guess = guesses[currentRow].join("");
+      const guess = guesses[currentRow].join("").toUpperCase();
 
       if (!validWordsSet.has(guess)) {
         showMessage("Not a valid word!");
@@ -376,14 +447,21 @@
           showMessage("Splendid!", 0);
           gameOver = true;
           document.getElementById('next-btn').classList.remove('hidden');
+          document.getElementById('hint-btn').classList.add('hidden');
         } else if (currentRow === 5) {
           showMessage(`Word was: ${targetWord}`, 0);
           gameOver = true;
           document.getElementById('next-btn').classList.remove('hidden');
+          document.getElementById('hint-btn').classList.add('hidden');
         } else {
           currentRow++;
           currentTile = 0;
           highlightSelectedTile();
+
+          // Reveal "Need Extra Hint?" button starting from row index 2 (3rd attempt)
+          if (currentRow >= 2 && document.getElementById('definition-hint').classList.contains('hidden')) {
+            document.getElementById('hint-btn').classList.remove('hidden');
+          }
         }
       }, wordLength * 200);
     }
